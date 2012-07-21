@@ -13,8 +13,8 @@ typedef unsigned int PageNumber;
 
 #define KERNEL_SIZE	7*1024*1024
 #define LOG2_KERNEL_ALIGNMENT	12
-//#define KERNEL_FILENAME	"SDFS:$.!Boot.Loader.kernel/img"
-#define KERNEL_FILENAME	"SDFS:$.blinker01/bin"
+#define KERNEL_FILENAME	"SDFS:$.!Boot.Loader.kernel/img"
+//#define KERNEL_FILENAME	"SDFS:$.blinker01/bin"
 
 #define OSMEMORY_SUPPLY_PHYSICAL_PAGENO	(1<<8)
 #define OSMEMORY_SUPPLY_LOGICAL_ADDR	(1<<9)
@@ -27,7 +27,7 @@ typedef unsigned int PageNumber;
 
 #define MACHID_BCM2708	3072	// from ARM Linux registry
 
-void jump_to_linux(int kernel_size, int machine_type, PhysicalAddr atags, PhysicalAddr kernel);
+PhysicalAddr jump_to_linux(int kernel_size, int machine_type, PhysicalAddr atags, PhysicalAddr kernel);
 
 //#define PHYS_TO_UNCACHED_PHYS(x) ((x & 0x1FFFFFFF) | ( 0xC0000000))
 
@@ -49,6 +49,7 @@ void linuxboot(int doboot)
 	int kernel_length=0;
 	void *logical_addr=0;
 	char buf[256];
+        PhysicalAddr r=0;
 	PhysicalAddr physical_addr=0; // no point dereferencing a pointer to physical address space
 	
 	_swi(OS_Memory,_INR(0,1),10,1); // free pool lock
@@ -78,7 +79,10 @@ void linuxboot(int doboot)
 	//snprintf(buf,256,"*memoryi %x",logical_addr);
 	//_swix(OS_CLI,buf);
 	if (doboot)
-		jump_to_linux(kernel_length, MACHID_BCM2708, 0x100, physical_addr);
+	{
+		r=jump_to_linux(kernel_length, MACHID_BCM2708, 0x100, physical_addr);
+		printf("Returned %x  ",r);
+        }
 	
 	_swix(OS_Memory,_INR(0,1),10,0); // free pool unlock
 }
