@@ -1,6 +1,8 @@
 TARGET  := LinuxBoot,ffa
 SRCS    := module.c
+ASSRCS	:= boot.s
 OBJS	:= ${SRCS:.c=.o}
+ASOBJS	:= ${ASSRCS:.s=.o}
 DEPS    := ${SRCS:.c=.dep} 
 XDEPS   := $(wildcard ${DEPS}) 
 
@@ -8,6 +10,7 @@ CCFLAGS = -O2 -Wall -mlibscl -mmodule -mhard-float
 #-Werror 
 CMHGFLAGS = -tgcc -apcs 3/32/fpe3
 LDFLAGS = -mlibscl -mmodule -mhard-float
+ASFLAGS	=
 LIBS    = 
 
 CC	=	gcc
@@ -22,7 +25,7 @@ ifneq (${XDEPS},)
 include ${XDEPS} 
 endif 
 
-${TARGET}: ${OBJS} crhdr.o
+${TARGET}: ${OBJS} ${ASOBJS} modhdr.o
 	${CC} ${LDFLAGS} -o $@ $^ ${LIBS} 
 
 ${OBJS}: %.o: %.c %.dep 
@@ -31,10 +34,10 @@ ${OBJS}: %.o: %.c %.dep
 ${DEPS}: %.dep: %.c Makefile 
 	${CC} ${CCFLAGS} -MM $< > $@ 
 
-#${ASOBJS}: %.o: %.s
-#	${AS} ${ASFLAGS} -o $@ -c $< 
+${ASOBJS}: %.o: %.s
+	${AS} ${ASFLAGS} -o $@ $< 
 
-crhdr.o:	cmhg/crhdr
+modhdr.o:	cmhg/modhdr
 	${CMHG} ${CMHGFLAGS} -o $@ $<
 
 clean:: 
