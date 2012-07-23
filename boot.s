@@ -13,8 +13,8 @@ c1	CN	1
 ; on entry:
 ;	a1 = size of kernel
 ;	a2 = Linux machine ID
-;	a3 = pointer to ATAGS
-;	a4 = physical address of Linux kernel
+;	a3 = pointer to ATAGS in destination physical address space
+;	a4 = physical address of Linux kernel with ATAGS filled in
 ; on exit:
 ;	never returns!
 
@@ -93,10 +93,11 @@ copy_to_zero
 	CMP	v1,a1		; done yet?
 	BLE	%BT05
 
-
+	MOV	a1,#0		; r0=0, parameter to kernel
 	MOV	pc,#0		; now jump into Linux for real
 				; (a1 = physical address)
  |
+	MOV	a1,#0		; r0=0, parameter to kernel
 	MOV	pc,a4
  ]
 
