@@ -42,6 +42,8 @@ OSERROR *module_cmd(char *argString, int argc, int commandNumber, void *privateW
   UNUSED(argString);
   UNUSED(argc);
   UNUSED(commandNumber);
+
+  start_linux(argString,"",CMDLINE,commandNumber);
   return 0;
 }
 

@@ -22,5 +22,7 @@ swi-decoding-table: LinuxBoot,
 
 command-keyword-table: module_cmd
 
-;  CryptRandomLicence(min-args:0, max-args:0,
-;      help-text: "CryptRandomLicence shows the licence conditions for CryptRandom\n")
+  LinuxSafe(min-args:1, max-args:1,
+      help-text: "LinuxSafe <kernel filename> doesn't boot the Linux kernel\n"),
+  Linux(min-args:1, max-args:1,
+      help-text: "Linux <kernel filename> boots the Linux kernel\n")

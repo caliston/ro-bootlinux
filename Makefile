@@ -19,6 +19,9 @@ CMHG	=	cmunge
 
 .PHONY: all clean distclean 
 
+install:	all
+	cp ${TARGET} ~/public_html/ephemeral/
+
 all:: ${TARGET} 
 
 ifneq (${XDEPS},) 
