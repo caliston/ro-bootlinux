@@ -29,7 +29,7 @@ sectors_linux_img = bytes_linux_img/512
 
 Stick them together into a file:
 # dd if=RISCOS_Alpha_8Aug2012.img of=merged.img bs=1M
-# dd if=2012-07-15-wheezy-raspbian.img of=merged.img bs=512 conv=notrunc oflag=append
+# dd if=2012-07-15-wheezy-raspbian.img of=merged.img bs=512 skip=<sectors_riscos_img> conv=notrunc oflag=append
 
 Look at the partition table of the Linux image:
 
