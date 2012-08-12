@@ -1,4 +1,4 @@
-
+	GET	bcm2835.hdr
 
 OS_EnterOS	*	&16
 OS_Memory	*	&68
@@ -76,6 +76,10 @@ logical_to_physical_translate
 code_in_phys_mem
 ; now we're executing in physical memory space
 
+; kill all the DMA channels
+	BL	dma_reset
+
+
 ; copy the kernel down to physical address zero
 ; (doesn't consider case where pages might clash)
 
@@ -100,6 +104,23 @@ copy_to_zero
 	MOV	a1,#0		; r0=0, parameter to kernel
 	MOV	pc,a4
  ]
+
+
+; reset all the DMA channels of the BCM2835
+dma_reset
+	MOV	v3,#DMA_CS_RESET	; write reset to each DMA register
+	LDR	v4,=DMA0_BASE		; in turn
+	MOV	v5,#DMA_CHANNELS-1
+10
+	STR	v3,[v4,#DMA_REG_CS]
+	ADD	v4,v4,#DMA_BASE_OFFSET
+	SUBS	v5,v5,#1
+	BNE	%BT10
+
+	LDR	v4,=DMA15_BASE		; DMA15 is at a special address
+	STR	v3,[v4,#DMA_REG_CS]	; so kill that too
+
+	MOV	pc,r14			; done!
 
 
 	END
