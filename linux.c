@@ -190,7 +190,7 @@ _kernel_oserror *start_linux(char *name, char *rdname, char *cmdline, int doBoot
 
 	// can't load an initrd due to shortcomings in the above call
 
-//    setup_tags(kernel.memory.logical + ATAGS_OFFSET);	/* sets up parameters */
+    setup_tags(kernel.memory.logical + ATAGS_OFFSET);	/* sets up parameters */
     sprintf(buf,"memory p %x",kernel.memory.physical + ATAGS_OFFSET);
     _swix(OS_CLI,_IN(0),buf);
 
