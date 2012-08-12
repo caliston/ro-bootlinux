@@ -94,7 +94,8 @@ setup_end_tag(void)
 #define MACHTYPE_BCM2708 3072
 
 //#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
-#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
+//#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
+#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=1296 bcm2708_fb.fbheight=1040 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
 
 #define OSMEMORY_SUPPLY_PHYSICAL_PAGENO        (1<<8)
 #define OSMEMORY_SUPPLY_LOGICAL_ADDR   (1<<9)
@@ -189,7 +190,7 @@ _kernel_oserror *start_linux(char *name, char *rdname, char *cmdline, int doBoot
 
 	// can't load an initrd due to shortcomings in the above call
 
-    setup_tags(kernel.memory.logical + ATAGS_OFFSET);	/* sets up parameters */
+//    setup_tags(kernel.memory.logical + ATAGS_OFFSET);	/* sets up parameters */
     sprintf(buf,"memory p %x",kernel.memory.physical + ATAGS_OFFSET);
     _swix(OS_CLI,_IN(0),buf);
 
