@@ -14,6 +14,7 @@ static void *module_globalPrivateWord=NULL;
 //#define KERNEL_FILENAME	"SDFS:$.blinker01/bin"
 #define INITRD_FILENAME "none"
 #define CMDLINE "not passed yet"
+#define ZIMAGE_MODE	0	// doesn't work
 
 OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 {
@@ -25,7 +26,7 @@ OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
   switch(swiNumber)
   {
 	case LinuxBoot_Go:
-		start_linux(KERNEL_FILENAME,INITRD_FILENAME,CMDLINE,r->r[0]);
+		start_linux(KERNEL_FILENAME,INITRD_FILENAME,CMDLINE,r->r[0],ZIMAGE_MODE);
 		printf("Phew!\n");
 		break;
 //    case CryptRandom_AddNoise:
@@ -43,7 +44,7 @@ OSERROR *module_cmd(char *argString, int argc, int commandNumber, void *privateW
   UNUSED(argc);
   UNUSED(commandNumber);
 
-  start_linux(argString,"",CMDLINE,commandNumber);
+  start_linux(argString,"",CMDLINE,commandNumber,ZIMAGE_MODE);
   return 0;
 }
 
