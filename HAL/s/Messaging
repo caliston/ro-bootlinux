@@ -30,9 +30,9 @@
 
         AREA    |ARM$$code|, CODE, READONLY, PIC
 
-        GET     Hdr:ListOpts
-        GET     hdr.BCM2835
-        GET     hdr.StaticWS
+;        GET     Hdr:ListOpts
+        GET     hdr/BCM2835
+        GET     hdr/StaticWS
 
         IMPORT  workspace
 

@@ -31,8 +31,15 @@
 ;
 
 
-        [ :LNOT :DEF: BCM2835_Hdr
+        [ :LNOT: :DEF: BCM2835_Hdr
         GBLL BCM2835_Hdr
+
+; for asasm
+        [ :LNOT: :DEF: UAL
+        GBLL	UAL
+	SETL	{FALSE}
+	]
+
 
                 GBLL    HALDebug
 HALDebug        SETL    {TRUE}

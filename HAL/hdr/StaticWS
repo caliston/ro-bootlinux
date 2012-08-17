@@ -30,11 +30,11 @@
 ; its Linux drivers, thus making this port possible.
 ;
 
-                GET     Hdr:OSEntries
-                GET     Hdr:HALDevice
-                GET     Hdr:SDHCIDevice
-                GET     Hdr:DMADevice
-                GET     hdr.BCM2835
+;                GET     Hdr:OSEntries
+;                GET     Hdr:HALDevice
+;                GET     Hdr:SDHCIDevice
+;                GET     Hdr:DMADevice
+                GET     hdr/BCM2835
 
 ; Per-timer workspace layout
                             ^             0
@@ -45,29 +45,29 @@ Timer_Device                #             4       ; device number
 TimerWsSize                 *             :INDEX: @
 
 ; Per-DMA channel workspace
-                       ^ 0, a1
-DMACDevice             # HALDevice_DMAL_Size
-DMACWorkspace          # 4 ; HAL workspace ptr
-DMACChanMask           # 4 ; DMA_ENABLE bit for this channel
-DMACDREQ               # 4 ; Peripheral/DREQ this channel is servicing
-DMACOptions            # 4 ; Options set by SetOptions
-DMACPeriAddress        # 4 ; VC phys addr of peripheral - i.e. at &7e......
-DMACLastProgress       # 4 ; Last progress value
-DMACLastCONBLK_AD      # 4 ; Last control block seen executing
-DMACLastTXFR_LEN       # 4 ; Last transfer length remaining seen
-DMACCBOffset           # 4 ; Address offset to convert DMA CB addr to ARM CB addr
-DMACDesc               # 32 ; Buffer for description string
-DMAC_DeviceSize        * :INDEX: @
+;                       ^ 0, a1
+;DMACDevice             # HALDevice_DMAL_Size
+;DMACWorkspace          # 4 ; HAL workspace ptr
+;DMACChanMask           # 4 ; DMA_ENABLE bit for this channel
+;DMACDREQ               # 4 ; Peripheral/DREQ this channel is servicing
+;DMACOptions            # 4 ; Options set by SetOptions
+;DMACPeriAddress        # 4 ; VC phys addr of peripheral - i.e. at &7e......
+;DMACLastProgress       # 4 ; Last progress value
+;DMACLastCONBLK_AD      # 4 ; Last control block seen executing
+;DMACLastTXFR_LEN       # 4 ; Last transfer length remaining seen
+;DMACCBOffset           # 4 ; Address offset to convert DMA CB addr to ARM CB addr
+;DMACDesc               # 32 ; Buffer for description string
+;DMAC_DeviceSize        * :INDEX: @
 
 ; VCHIQ HAL device layout
 
-                                 ^ 0
-                                 # HALDeviceSize
-HALDevice_VCHIQARMToVCOffset     # 4
-HALDevice_VCHIQVCDoorbell        # 4 ; Doorbell to interrupt VC
-HALDevice_VCHIQARMDoorbell       # 4 ; Doorbell to interrupt us
-HALDevice_VCHIQInitVC            # 4
-HALDevice_VCHIQ_Size             * :INDEX: @
+;                                 ^ 0
+;                                 # HALDeviceSize
+;HALDevice_VCHIQARMToVCOffset     # 4
+;HALDevice_VCHIQVCDoorbell        # 4 ; Doorbell to interrupt VC
+;HALDevice_VCHIQARMDoorbell       # 4 ; Doorbell to interrupt us
+;HALDevice_VCHIQInitVC            # 4
+;HALDevice_VCHIQ_Size             * :INDEX: @
 
 ; Main workspace layout
 
@@ -99,7 +99,7 @@ ARM_Memory      #       4
 
 ; align to 16 byte boundary NB this isnt aligned once hal initialised
                 #       (((:INDEX:@)+15):AND::NOT:15)-(:INDEX:@)
- ! 0,"tagbuffer at ":CC::STR:(&fc001000+:INDEX:@),0
+ ! 0,"tagbuffer at ":CC::STR:(&fc001000+:INDEX:@)
 tagbuffer       #       256 ;; for now                      ; platform query buffer
 
 ; align to 16 byte boundary  NB this isnt aligned once hal initialised      
@@ -145,30 +145,30 @@ vrmsize         *       :INDEX: @ - :INDEX:mbram
 NCNBAddr        #       4       ;NCNB workspace
 NCNBPhysAddr    #       4       ;VC physical address of NCNB workspace
 
-OSheader        #       4
-OSentries       #       4*(HighestOSEntry+1)
+;OSheader        #       4
+;OSentries       #       4*(HighestOSEntry+1)
 
 
 
- ! 0,"SDHCI at ":CC::STR:(&FC0001D8+:INDEX:@),0
-SDHCIWriteInterval #    4 ; minimum counter ticks between writes
-SDHCILastWriteCount #   4 ; counter value at last write
-SDHCIInputClock #       4 ; estimated speed of input clock to SDHCI block
+; ! 0,"SDHCI at ":CC::STR:(&FC0001D8+:INDEX:@)
+;SDHCIWriteInterval #    4 ; minimum counter ticks between writes
+;SDHCILastWriteCount #   4 ; counter value at last write
+;SDHCIInputClock #       4 ; estimated speed of input clock to SDHCI block
                 #       (16-:INDEX:@):AND:15         ; align nicely
-SDHCIDevice     #       HALDevice_SDHCISize          ; see Hdr:SDHCIDevice
-SDHCISlotInfo   #       HALDeviceSDHCI_SlotInfo_Size ; the controller has just the 1 slot
+;SDHCIDevice     #       HALDevice_SDHCISize          ; see Hdr:SDHCIDevice
+;SDHCISlotInfo   #       HALDeviceSDHCI_SlotInfo_Size ; the controller has just the 1 slot
 
-DMAFreeChannels #       4 ; Mask of which physical DMA channels are free
-DMANumChannels  #       4 ; Count of how many channel devices exist
-DMAChannelList  #       DMA_CH_Count*4 ; List of channel devices for Enumerate
+;DMAFreeChannels #       4 ; Mask of which physical DMA channels are free
+;DMANumChannels  #       4 ; Count of how many channel devices exist
+;DMAChannelList  #       DMA_CH_Count*4 ; List of channel devices for Enumerate
                 #       (16-:INDEX:@):AND:15         ; align nicely
-DMAController   #       HALDevice_DMAC_Size_0_1      ; see Hdr:HALDevice
-DMAChannels     #       DMAC_DeviceSize*DMA_CH_Count ; List of channel devices (indexed by physical channel #)
+;DMAController   #       HALDevice_DMAC_Size_0_1      ; see Hdr:HALDevice
+;DMAChannels     #       DMAC_DeviceSize*DMA_CH_Count ; List of channel devices (indexed by physical channel #)
 
 CurUnder        #       32*4*32
 CurShape        #       32/4*32
 
-VCHIQDevice     #       HALDevice_VCHIQ_Size
+;VCHIQDevice     #       HALDevice_VCHIQ_Size
 
 HAL_WsSize              *       :INDEX:@
 sizeof_workspace        *       :INDEX:@
