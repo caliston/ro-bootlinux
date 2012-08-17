@@ -6,7 +6,9 @@
 
 #include "linuxboot.h"
 #include "types.h"
+#include "riscos.h"
 #include "linux.h"
+
 
 static void *module_globalPrivateWord=NULL;
 
@@ -15,26 +17,36 @@ static void *module_globalPrivateWord=NULL;
 #define INITRD_FILENAME "none"
 #define CMDLINE "not passed yet"
 #define ZIMAGE_MODE	0	// doesn't work
-#define IO_BASE 0x20000000
-#define IO_SIZE 0x01000000
+
+#define ERROR_CHECK(f)  if ((r=f)) return r;
 
 extern int HAL_SendHostMessage(int channel, void*tagBuffer, void *iobase);
+extern void Tags(void);
 
 OSERROR *test_message(_kernel_swi_regs *r)
 {
   _kernel_oserror *err;
-  int output;
-  PageBlock io;
-  void *ioLogical;
+  int output=0;
+  int channel = r->r[0];
+  LogicalAddress buffer = r->r[1];
+  PhysicalAddress bufferPhys=0;
+  LogicalAddress iobaseLogical;
+  char buf[1024];
+  char printbuf[1024];
+  char *bufAlign = (char *)((((int) buf+256)>>8)<<8);
   
-  io.physical=IO_BASE;
-  if ((err=_swix(OS_Memory,_INR(0,2)|_OUT(3),13,IO_BASE,IO_SIZE,
-        &ioLogical)))
-      return err;
-  printf("IO base logical address = %p\n",ioLogical);
+  // create a local, 256 byte aligned, copy of the tags
+  memcpy(bufAlign,Tags,256);
+	ERROR_CHECK(riscos_log2phys(bufAlign,&bufferPhys));
+	ERROR_CHECK(riscos_readIObase(&iobaseLogical));
+	printf("channel = %d, IO base log = %x, parameters phys = %p\n",channel, iobaseLogical, bufferPhys);
    
-  output=HAL_SendHostMessage(r->r[0],r->r[1],r->r[2]);
-  printf("Responded %x\n");
+//  output=HAL_SendHostMessage(channel,bufferPhys,iobaseLogical);
+  output=HAL_SendHostMessage(channel,bufferPhys,iobaseLogical);
+  printf("Responded %x, tags=%x\n",output,bufAlign);
+    sprintf(printbuf,"memory %x+100",bufAlign);
+    _swix(OS_CLI,_IN(0),printbuf);
+  
   return NULL;
 }
 

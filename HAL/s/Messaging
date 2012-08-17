@@ -153,6 +153,7 @@ ARM2VC_Tag_FBSetPalette          * &0004800b ; do ranged update of table
         EXPORT  RamAd
         EXPORT  SerNo
         EXPORT  Displ
+        EXPORT	Tags
 
         MACRO
 $label  DoMemBarrier $r, $cond
@@ -210,6 +211,39 @@ HAL_SendHostMessage  ROUT
         LDMFD   r13!, {r1-r3, pc}     ; returning composite response in r0
 
 
+Tags	ROUT
+Tagsb    DCD     Tagsslen
+        DCD     0        
+Tagmac  DCD     ARM2VC_Tag_GetBoardMAC
+        DCD     8
+        DCD     0        
+TMAClo   DCD     0        
+TMAChi   DCD     0        
+Tagserial
+        DCD     ARM2VC_Tag_GetBoardSerial
+        DCD     8
+        DCD     0        
+TSNlo    DCD     0
+TSNhi    DCD     0        
+Tagarmmem
+        DCD     ARM2VC_Tag_GetARMMemory
+        DCD     8
+        DCD     0        
+TARMbs   DCD     0
+TARMsz   DCD     0
+Tagvcmem
+        DCD     ARM2VC_Tag_GetVCMemory
+        DCD     8
+        DCD     0        
+TVCbs    DCD     0
+TVCsz    DCD     0        
+        DCD     ARM2VC_Tag_GetClockRate
+        DCD     8
+        DCD	0
+TClk        DCD     0x1 ; EMMC
+	DCD     0
+        DCD     ARM2VC_Tag_End
+Tagsslen *       . - Tags
 
 ; series of VC side query tags. Using inline code as this is writable at this 
 ; stage. This means the answers will be encapsulated in rom image!!

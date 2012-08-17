@@ -5,6 +5,7 @@
 
 typedef uint32_t PhysicalAddress;
 typedef uint32_t PageNumber;
+typedef void *   LogicalAddress;
 
 typedef struct {
         PageNumber      number;
