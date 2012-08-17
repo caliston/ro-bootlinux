@@ -8,6 +8,8 @@
 #include "bcm2835.h"
 #include "riscos.h"
 
+/* convert a logical address into a physical address */
+
 OSERROR *riscos_log2phys(void *logical, PhysicalAddress *physical)
 {
 	OSERROR *err;
@@ -21,6 +23,8 @@ OSERROR *riscos_log2phys(void *logical, PhysicalAddress *physical)
 	*physical = page.physical;
 	return NULL;
 }
+
+/* read the logical address of the IO controller */
 
 OSERROR *riscos_readIObase(void **logical)
 {

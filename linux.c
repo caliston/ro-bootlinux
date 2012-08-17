@@ -88,7 +88,6 @@ setup_end_tag(void)
 
 
 #define DRAM_BASE 0x0
-#define DRAM_SIZE 128*1024*1024
 #define KERNEL_START DRAM_BASE + 0x8000
 //#define INITRD_LOAD_ADDRESS DRAM_BASE + 0x800000
 #define ATAGS_OFFSET	0x100
@@ -110,7 +109,7 @@ PhysicalAddress jump_to_linux(int kernel_size, int machine_type, PhysicalAddress
 
 
 void
-setup_tags(void *parameters)
+setup_tags(void *parameters, char *cmdline)
 {
     PhysicalAddress ramBase;
     unsigned int ramSize;
@@ -120,7 +119,7 @@ setup_tags(void *parameters)
     setup_mem_tag(ramBase, ramSize);    /* 64Mb at 0x10000000 */
 //    setup_ramdisk_tag(4096);                /* create 4Mb ramdisk */ 
 //    setup_initrd2_tag(INITRD_LOAD_ADDRESS, 0x100000); /* 1Mb of compressed data placed 8Mb into memory */
-    setup_cmdline_tag(CMDLINE);    /* commandline setting root device */
+    setup_cmdline_tag(cmdline);    /* commandline setting root device */
     setup_end_tag();                    /* end of tags */
 }
 
@@ -209,7 +208,7 @@ _kernel_oserror *start_linux(char *name, char *rdname, char *cmdline, int doBoot
 
 	// can't load an initrd due to shortcomings in the above call
 
-    setup_tags(kernel.memory.logical + ATAGS_OFFSET);	/* sets up parameters */
+    setup_tags(kernel.memory.logical + ATAGS_OFFSET, cmdline);	/* sets up parameters */
     /* dump out the setting up code and the ATAGS (if any) */
     sprintf(buf,"memory p %x+200",kernel.memory.physical);
     _swix(OS_CLI,_IN(0),buf);

@@ -1,7 +1,7 @@
 
-help-string:  LinuxBoot 0.01
+help-string:  BootLinux 0.01
 
-title-string: LinuxBoot
+title-string: BootLinux
 
 initialisation-code: module_initialise
 
@@ -12,8 +12,8 @@ swi-chunk-base-number: 0x12300
 
 swi-handler-code: module_swi
 
-swi-decoding-table: LinuxBoot,
-		    Go
+swi-decoding-table: BootLinux,
+		    Boot
 ;,
 
 ;irq-handlers:	event_eventv_entry   / event_eventv_handler

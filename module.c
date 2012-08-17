@@ -23,11 +23,11 @@ OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 
   switch(swiNumber)
   {
-	case LinuxBoot_Go:
-		start_linux(KERNEL_FILENAME,INITRD_FILENAME,CMDLINE,r->r[0],ZIMAGE_MODE);
+	case BootLinux_Boot:
+		start_linux(r->r[1] /*KERNEL_FILENAME*/,INITRD_FILENAME,r->r[2] /*CMDLINE*/,r->r[0],ZIMAGE_MODE);
 		printf("Phew!\n");
 		break;
-        case LinuxBoot_Messaging:
+        case BootLinux_Messaging:
                 //result=test_message(r);
                 break;
 	default:
