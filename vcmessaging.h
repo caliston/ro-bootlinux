@@ -94,3 +94,4 @@ struct vctag_tag {
 
 extern int HAL_SendHostMessage(int channel, void*tagBuffer, void *iobase);
 extern OSERROR *set_emmc_clock(unsigned int emmcClock);
+extern OSERROR *get_ram(PhysicalAddress *ramBase,unsigned int *ramSize);

@@ -112,8 +112,12 @@ PhysicalAddress jump_to_linux(int kernel_size, int machine_type, PhysicalAddress
 void
 setup_tags(void *parameters)
 {
+    PhysicalAddress ramBase;
+    unsigned int ramSize;
     setup_core_tag(parameters, 4096);       /* standard core tag 4k pagesize */
-    setup_mem_tag(DRAM_BASE, DRAM_SIZE);    /* 64Mb at 0x10000000 */
+    get_ram(&ramBase, &ramSize);
+    printf("Ram start %x, bytes %d\n",ramBase,ramSize);
+    setup_mem_tag(ramBase, ramSize);    /* 64Mb at 0x10000000 */
 //    setup_ramdisk_tag(4096);                /* create 4Mb ramdisk */ 
 //    setup_initrd2_tag(INITRD_LOAD_ADDRESS, 0x100000); /* 1Mb of compressed data placed 8Mb into memory */
     setup_cmdline_tag(CMDLINE);    /* commandline setting root device */
