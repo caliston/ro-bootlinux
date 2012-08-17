@@ -1,5 +1,5 @@
 TARGET  := LinuxBoot,ffa
-SRCS    := module.c linux.c riscos.c
+SRCS    := module.c linux.c riscos.c vcmessaging.c
 ASSRCS	:= boot.s Messaging.s
 OBJS	:= ${SRCS:.c=.o}
 ASOBJS	:= ${ASSRCS:.s=.o}

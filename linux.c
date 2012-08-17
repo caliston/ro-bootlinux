@@ -5,6 +5,7 @@
 #include <swis.h>
 #include "atags.h"
 #include "riscos.h"
+#include "vcmessaging.h"
 
 #define tag_next(t)     ((struct atag *)((u32 *)(t) + (t)->hdr.size))
 #define tag_size(type)  ((sizeof(struct atag_header) + sizeof(struct type)) >> 2)
@@ -95,9 +96,9 @@ setup_end_tag(void)
 #define MACHTYPE_BCM2708 3072
 
 /* Temporarily hard-coded things */
-//#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
+#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=1296 bcm2708_fb.fbheight=1040 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
 //#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
-#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=1296 bcm2708_fb.fbheight=1040 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
+//#define CMDLINE "dma.dmachans=0x3c bcm2708_fb.fbwidth=1296 bcm2708_fb.fbheight=1040 bcm2708.boardrev=0x2 bcm2708.serial=0x3a8ad45d smsc95xx.macaddr=B8:27:EB:8A:D4:5D dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/sda2 rootfstype=ext4 rootwait"
 
 // load in on a page boundary
 #define LOG2_KERNEL_ALIGNMENT	12
@@ -208,6 +209,12 @@ _kernel_oserror *start_linux(char *name, char *rdname, char *cmdline, int doBoot
     /* dump out the setting up code and the ATAGS (if any) */
     sprintf(buf,"memory p %x+200",kernel.memory.physical);
     _swix(OS_CLI,_IN(0),buf);
+
+    // Linux likes a 50MHz clock
+    if ((r=set_emmc_clock(50000000)))
+	return r; 
+
+    //wait(1);
 
     if (doBoot)
     {

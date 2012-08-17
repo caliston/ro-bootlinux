@@ -1,14 +1,8 @@
-#include "kernel.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "swis.h"
-
 #include "linuxboot.h"
 #include "types.h"
 #include "riscos.h"
 #include "linux.h"
-
+#include "vcmessaging.h"
 
 static void *module_globalPrivateWord=NULL;
 
@@ -17,38 +11,6 @@ static void *module_globalPrivateWord=NULL;
 #define INITRD_FILENAME "none"
 #define CMDLINE "not passed yet"
 #define ZIMAGE_MODE	0	// doesn't work
-
-#define ERROR_CHECK(f)  if ((r=f)) return r;
-
-extern int HAL_SendHostMessage(int channel, void*tagBuffer, void *iobase);
-extern void Tags(void);
-
-OSERROR *test_message(_kernel_swi_regs *r)
-{
-  _kernel_oserror *err;
-  int output=0;
-  int channel = r->r[0];
-  LogicalAddress buffer = r->r[1];
-  PhysicalAddress bufferPhys=0;
-  LogicalAddress iobaseLogical;
-  char buf[1024];
-  char printbuf[1024];
-  char *bufAlign = (char *)((((int) buf+256)>>8)<<8);
-  
-  // create a local, 256 byte aligned, copy of the tags
-  memcpy(bufAlign,Tags,256);
-	ERROR_CHECK(riscos_log2phys(bufAlign,&bufferPhys));
-	ERROR_CHECK(riscos_readIObase(&iobaseLogical));
-	printf("channel = %d, IO base log = %x, parameters phys = %p\n",channel, iobaseLogical, bufferPhys);
-   
-//  output=HAL_SendHostMessage(channel,bufferPhys,iobaseLogical);
-  output=HAL_SendHostMessage(channel,bufferPhys,iobaseLogical);
-  printf("Responded %x, tags=%x\n",output,bufAlign);
-    sprintf(printbuf,"memory %x+100",bufAlign);
-    _swix(OS_CLI,_IN(0),printbuf);
-  
-  return NULL;
-}
 
 OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 {
@@ -66,7 +28,7 @@ OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 		printf("Phew!\n");
 		break;
         case LinuxBoot_Messaging:
-                result=test_message(r);
+                //result=test_message(r);
                 break;
 	default:
 		break;
