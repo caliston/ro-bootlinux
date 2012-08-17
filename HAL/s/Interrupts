@@ -1,0 +1,226 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+
+        EXPORT  Interrupt_Init
+        EXPORT  HAL_IRQEnable
+        EXPORT  HAL_IRQDisable
+        EXPORT  HAL_IRQClear
+        EXPORT  HAL_IRQSource
+        EXPORT  HAL_IRQStatus
+        EXPORT  HAL_FIQEnable
+        EXPORT  HAL_FIQDisable
+        EXPORT  HAL_FIQDisableAll
+        EXPORT  HAL_FIQClear
+        EXPORT  HAL_FIQSource
+        EXPORT  HAL_FIQStatus
+
+
+        GET     Hdr:ListOpts
+        GET     Hdr:Macros
+        GET     Hdr:System
+        
+        GET     hdr.BCM2835
+        GET     hdr.StaticWS
+
+
+        AREA    |ARM$$code|, CODE, READONLY, PIC
+
+
+; One-time initialisation
+        
+Interrupt_Init
+        LDR     a1, PeriBase
+        ADD     a1, a1, #IRQ_Base
+        STR     a1, IRQ_Base_Address      
+        MOV     pc, lr
+
+
+HAL_IRQEnable
+        CMN     a1,#1
+        MOVEQ   pc,lr
+
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        ADD     ip, ip, #IRQ_EN1
+        MOV     a2, #1
+        AND     a3, a1, #&1F         ; get bit in register
+        MOV     a2, a2, LSL a3       ; bitmask
+        MOV     a3, a1, LSR #5       ; shift to get relevant register
+        LDR     a4, [ip, a3, LSL #2] ; get old enable mask
+        STR     a2, [ip, a3, LSL #2] ; enable our bit
+        AND     a1, a2, a4           ; test our bit in old mask
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_IRQDisable
+        CMN     a1,#1
+        MOVEQ   pc,lr
+
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        ADD     ip, ip, #IRQ_DIS1
+        MOV     a2, #1
+        AND     a3, a1, #&1F         ; get bit in register
+        MOV     a2, a2, LSL a3       ; bitmask
+        MOV     a3, a1, LSR #5       ; shift to get relevant register
+        LDR     a4, [ip, a3, LSL #2] ; get old enable mask
+        STR     a2, [ip, a3, LSL #2] ; disable our bit
+        AND     a1, a2, a4           ; test our bit in old mask
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_IRQClear
+HAL_FIQClear
+        ; There is no latching of interrupts in this interrupt controller,
+        ; so nothing to clear
+        MOV     pc, lr
+
+HAL_IRQSource
+        DoMemBarrier ip
+        LDR     a2, IRQ_Base_Address
+        LDRB    a1, [a2, #IRQ_PENDB]  ; note, LDRB so we ignore bits 8-31
+        CLZ     a1, a1
+        RSBS    a1, a1, #31
+        ADDPL   a1, a1, #iDev_ARM_Timer ; 64
+        MOVPL   pc, lr
+        LDR     a1, [a2, #IRQ_PEND2]
+        CLZ     a1, a1
+        RSBS    a1, a1, #31
+        ADDPL   a1, a1, #iDev_GPU_HostPort ; 32
+        MOVPL   pc, lr
+        LDR     a1, [a2, #IRQ_PEND1]
+        CLZ     a1, a1
+        RSB     a1, a1, #31
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_IRQStatus
+HAL_FIQStatus
+        ; This interrupt controller does not allow us to see the status of the interrupt request
+        ; lines prior to masking by the interrupt enable register, which is the defined result
+        ; of this call. The closest we can do is checking whether the stated device is interrupting.
+        CMN     a1,#1
+        MOVEQ   pc,lr
+
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        ASSERT  IRQ_PENDB = 0
+        MOV     a2, #1
+        AND     a3, a1, #&1F         ; get bit in register
+        MOV     a2, a2, LSL a3       ; bitmask
+        MOV     a3, a1, LSR #5       ; shift to get relevant register
+        SUBS    a3, a3, #2           ; rotate register because pending regs are in a different order
+        ADDMI   a3, a3, #3
+        LDR     a4, [ip, a3, LSL #2] ; get pending mask
+        AND     a1, a2, a4           ; test our bit
+        DoMemBarrier ip
+        MOV     pc, lr
+
+FIQEnable       *       1<<7
+FIQSourceMask   *       &7F
+
+HAL_FIQEnable
+        CMN     a1,#1
+        MOVEQ   pc,lr
+
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        
+        LDRB    a3, [ip, #IRQ_FIQCTL]   ; LDRB helpfully masks out bits 8-31 for us
+        ORR     a4, a1, #FIQEnable
+        TEQ     a3, a4                  ; Z set => FIQs already enabled
+        STR     a4, [ip, #IRQ_FIQCTL]
+        
+        ADD     ip, ip, #IRQ_EN1
+        MOV     a2, #1
+        AND     a3, a1, #&1F            ; get bit in register
+        MOV     a2, a2, LSL a3          ; bitmask
+        MOV     a3, a1, LSR #5          ; shift to get relevant register
+        STR     a2, [ip, a3, LSL #2]    ; enable our bit
+        
+        MOVEQ   a1, #1
+        MOVNE   a1, #0
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_FIQDisable
+        CMN     a1,#1
+        MOVEQ   pc,lr
+
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        
+        ADD     ip, ip, #IRQ_DIS1
+        MOV     a2, #1
+        AND     a3, a1, #&1F            ; get bit in register
+        MOV     a2, a2, LSL a3          ; bitmask
+        MOV     a3, a1, LSR #5          ; shift to get relevant register
+        STR     a2, [ip, a3, LSL #2]    ; disable our bit
+        
+        LDRB    a3, [ip, #IRQ_FIQCTL-IRQ_DIS1] ; LDRB helpfully masks out bits 8-31 for us
+        ORR     a4, a1, #FIQEnable
+        TEQ     a3, a4                  ; Z set => FIQs already enabled
+        MOV     a4, #0
+        STR     a4, [ip, #IRQ_FIQCTL-IRQ_DIS1]
+        
+        MOVEQ   a1, #1
+        MOVNE   a1, #0
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_FIQDisableAll
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        LDR     a1, [ip, #IRQ_FIQCTL]
+        DoMemBarrier a2
+        TST     a1, #FIQEnable
+        MOVEQ   pc, lr                  ; FIQs weren't enabled
+        
+        AND     a1, a1, #FIQSourceMask
+        ADD     ip, ip, #IRQ_DIS1
+        MOV     a2, #1
+        AND     a3, a1, #&1F            ; get bit in register
+        MOV     a2, a2, LSL a3          ; bitmask
+        MOV     a3, a1, LSR #5          ; shift to get relevant register
+        STR     a2, [ip, a3, LSL #2]    ; disable our bit
+        MOV     a4, #0
+        STR     a4, [ip, #IRQ_FIQCTL-IRQ_DIS1]
+        DoMemBarrier ip
+        MOV     pc, lr
+
+HAL_FIQSource
+        ; There can only be one, the configured FIQ device
+        DoMemBarrier ip
+        LDR     ip, IRQ_Base_Address
+        LDR     a1, [ip, #IRQ_FIQCTL]
+        AND     a1, a1, #FIQSourceMask
+        DoMemBarrier ip
+        MOV     pc, lr
+
+
+        END

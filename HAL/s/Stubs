@@ -1,0 +1,146 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; Copyright (c) 2012, Adrian Lees
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+; With many thanks to Broadcom Europe Ltd for releasing the source code to
+; its Linux drivers, thus making this port possible.
+;
+
+        AREA    |ARM$$code|, CODE, READONLY, PIC
+
+        GET     Hdr:ListOpts
+        GET     hdr.BCM2835
+        GET     hdr.StaticWS
+
+        IMPORT  workspace
+
+     [ HALDebug
+        IMPORT  output_hex8
+        IMPORT  output_newline
+        IMPORT  output_text
+        IMPORT  output_text_at
+     ]
+
+        EXPORT   HAL_IICBuses
+        EXPORT   HAL_IICType
+        EXPORT   HAL_IICDevice
+        EXPORT   HAL_IICTransfer
+        EXPORT   HAL_IICMonitorTransfer
+
+        EXPORT   HAL_ATAControllerInfo
+
+        EXPORT   HAL_KbdScanSetup
+        EXPORT   HAL_KbdScan
+        EXPORT   HAL_KbdScanFinish
+        EXPORT   HAL_KbdScanInterrupt
+
+        MACRO
+        HALStub $str
+    [  HALDebug
+        STMFD   sp!,{a1,lr}
+        ADR     a1,%FT01
+        ADR     lr,%FT02
+        B       output_text
+01      =       "$str called from "
+        ALIGN
+02      LDR     a1,[sp,#4]
+        BL      output_hex8
+        BL      output_newline
+        LDMFD   sp!,{a1,lr}
+    ]
+        MEND
+
+HAL_IICBuses
+        MOV     a1,#0
+        MOV     pc,lr
+
+HAL_IICType
+        HALStub "HAL_IICType"
+        MOV     pc,lr
+
+HAL_IICDevice
+        HALStub "HAL_IICDevice"
+        MOV     pc,lr
+
+HAL_IICTransfer
+        HALStub "HAL_IICTransfer"
+        MOV     pc,lr
+
+HAL_IICMonitorTransfer
+        HALStub "HAL_IICMonitorTransfer"
+        MOV     pc,lr
+
+HAL_UARTPorts
+        HALStub "HAL_UARTPorts"
+        MOV     a1,#0
+        MOV     pc,lr
+
+HAL_UARTStartUp
+HAL_UARTShutdown
+HAL_UARTFeatures
+HAL_UARTReceiveByte
+HAL_UARTTransmitByte
+HAL_UARTLineStatus
+HAL_UARTInterruptEnable
+HAL_UARTRate
+HAL_UARTFormat
+HAL_UARTFIFOSize
+HAL_UARTFIFOClear
+HAL_UARTFIFOEnable
+HAL_UARTFIFOThreshold
+HAL_UARTInterruptID
+HAL_UARTBreak
+HAL_UARTModemControl
+HAL_UARTModemStatus
+HAL_UARTDevice
+        HALStub "HAL_UART<>"
+        MOV     pc,lr
+
+
+HAL_ATAControllerInfo
+        HALStub "HAL_ATAControllerInfo"
+        MOV     pc,lr
+
+HAL_KbdScanSetup
+        HALStub "HAL_KbdScanSetup"
+        MOV     pc,lr
+
+HAL_KbdScan
+        HALStub "HAL_KbdScan"
+        MOV     a1,#&80000000   ; signal keyboard scan complete
+        MOV     pc,lr
+
+HAL_KbdScanFinish
+        HALStub "Hal_KbdScanFinish"
+        MOV     pc,lr
+
+HAL_KbdScanInterrupt
+        HALStub "HAL_KbdScanInterrupt"
+        MOV     pc,lr
+
+                END
+

@@ -1,0 +1,9 @@
+Note that this component is currently under the "mixed" hierarchy because it
+contains a mixture of BSD and shared-source licenced code - but the vast
+majority is BSD. If you are doing any work on this HAL, please ask before
+creating or importing any shared-source code here. There is a possibility
+that this HAL may be used by NetBSD, and we need to keep the code BSD
+licenced for it to be of use to them.
+
+Ben, 2012-05-13
+

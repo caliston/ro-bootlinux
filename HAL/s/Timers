@@ -1,0 +1,249 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+
+        EXPORT  Timer_Init
+        EXPORT  HAL_Timers
+        EXPORT  HAL_TimerDevice
+        EXPORT  HAL_CounterRate
+        EXPORT  HAL_TimerGranularity
+        EXPORT  HAL_TimerMaxPeriod
+        EXPORT  HAL_TimerSetPeriod
+        EXPORT  HAL_CounterPeriod
+        EXPORT  HAL_TimerPeriod
+        EXPORT  HAL_CounterRead
+        EXPORT  HAL_TimerReadCountdown
+        EXPORT  HAL_TimerIRQClear
+        EXPORT  HAL_CounterDelay
+
+; The BCM2835 has timers on both the GPU and ARM side, but the ARM timer speed
+; varies in power saving mode, making it practically useless, except perhaps as
+; a cycle counter for code optimisation?
+;
+; The datasheet recommends the use of the GPU side timer (system timer), but to
+; be unhelpful, all 4 interrupts from the system timer are officially reserved
+; for VideoCore use. There's no way we can do without a reliable monotonic
+; interrupt, so we have no option but to steal one or more of the channels from
+; VideoCore.
+;
+; By inspection, at the time of writing, start.elf appears to only use Timer0
+; and Timer2. In fact Timer0 even seems to be a centisecond interrupt, but we
+; need our own version, partly because NetTime will want to bend the exact
+; interrupt interval.
+
+        GET     Hdr:ListOpts
+        GET     Hdr:Macros
+        GET     Hdr:System
+        
+        GET     hdr.BCM2835
+        GET     hdr.StaticWS
+
+
+        ; Given a logical timer number in $timer, place a pointer to the
+        ; workspace for that timer in $ws
+        MACRO
+$lab    TimerWs $ws, $timer, $tmp
+        ASSERT  TimerWsSize = 16
+$lab    ADR     $tmp, Timer00000000Ws
+        ADD     $ws, $tmp, $timer, LSL #4
+        MEND
+
+
+        AREA    |ARM$$code|, CODE, READONLY, PIC
+        ARM     ; to allow PUSH and POP without warnings
+
+
+; One-time initialisation
+        
+Timer_Init ROUT
+        MOV     a1, #0
+        LDR     a2, PeriBase
+        ADD     a2, a2, #Timer_Base
+        GBLS    PDigit
+Timer   SETA    0
+        WHILE   Timer < NumTimers
+PDigit  SETS    :STR:TimerPhysFromLog$Timer:RIGHT:1
+        STR     a1, [sb, #:INDEX: Timer$Timer.Ws + Timer_Reload]
+        ADD     a3, a2, #ST_C$PDigit
+        STR     a3, [sb, #:INDEX: Timer$Timer.Ws + Timer_Register]
+        MOV     a3, #iDev_GPU_Timer0 + TimerPhysFromLog$Timer
+        STR     a3, [sb, #:INDEX: Timer$Timer.Ws + Timer_Device]
+Timer   SETA    Timer + 1
+        WEND
+        MOV     pc, lr
+
+
+HAL_Timers ROUT
+        MOV     a1, #NumTimers
+        MOV     pc, lr
+
+        
+HAL_TimerDevice ROUT
+        CMP     a1, #NumTimers
+        MOVCS   a1, #-1 ; invalid timer parameter
+        MOVCS   pc, lr
+        TimerWs a1, a1, ip
+        LDR     a1, [a1, #Timer_Device]
+        MOV     pc, lr
+
+
+HAL_CounterRate
+HAL_TimerGranularity ROUT
+        LDR     a1, =TIMER_RATE
+        MOV     pc, lr
+
+
+HAL_TimerMaxPeriod ROUT
+        ; Technically this could be anything up to 2^32 - 1, but we risk sign
+        ; confusion with periods of 2^31 or more. To allow for interrupt
+        ; latency, it probably wants to be even less than that, but even a
+        ; factor of 2 less is still over 17 minutes, much longer than most
+        ; other platforms permit.
+        MOV     a1, #&40000000
+        MOV     pc, lr
+
+
+HAL_TimerSetPeriod ROUT
+        CMP     a1, #NumTimers
+        MOVCS   pc, lr ; invalid timer parameter
+        PUSH    {lr}
+        DoMemBarrier lr
+        TimerWs a1, a1, ip
+        LDR     lr, PeriBase
+        LDR     ip, [a1, #Timer_Register]
+        ADD     lr, lr, #Timer_Base
+        
+        MRS     a4, CPSR
+        ORR     a3, a4, #I32_bit
+        MSR     CPSR_c, a3              ; IRQs off
+        
+        LDR     a3, [a1, #Timer_Reload]
+        STR     a2, [a1, #Timer_Reload]
+        TEQ     a3, #0                          ; if timer was disabled then
+        LDREQ   a3, [lr, #ST_CLO]               ; start counting from now,
+        ADDEQ   a3, a3, a2                      ; otherwise leave time of next
+        STREQ   a3, [ip]                        ; interrupt unchanged
+        STREQ   a3, [a1, #Timer_Compare]
+        
+        MSR     CPSR_c, a4              ; IRQs restored
+        DoMemBarrier lr
+        POP     {pc}
+
+
+HAL_CounterPeriod
+        MOV     a1, #0
+HAL_TimerPeriod ROUT
+        CMP     a1, #NumTimers
+        MOVCS   a1, #0 ; invalid timer parameter
+        MOVCS   pc, lr
+        TimerWs a1, a1, ip
+        LDR     a1, [a1, #Timer_Reload]
+        MOV     pc, lr
+
+
+HAL_CounterRead
+        MOV     a1, #0
+HAL_TimerReadCountdown ROUT
+        CMP     a1, #NumTimers
+        BCS     %F90 ; invalid timer parameter
+        DoMemBarrier ip
+        TimerWs a1, a1, ip
+        LDR     a4, PeriBase
+        ADD     a4, a4, #Timer_Base
+        ASSERT  Timer_Reload = 0 :LAND: Timer_Compare = 4
+        LDMIA   a1, {a2, a3}
+        LDR     a4, [a4, #ST_CLO]
+        TEQ     a2, #0
+        BEQ     %F90 ; timer disabled
+        SUBS    a1, a3, a4
+         ; Keep adding the reload value (to account for not-yet-serviced timer
+         ; interrupts) until result is back in range - hopefully this will rarely
+         ; need to happen more than once so no need to optimise with a division
+01      ADDSMI  a1, a1, a2
+        BMI     %B01
+        MOVEQ   a1, a2
+        DoMemBarrier ip
+        MOV     pc, lr
+
+        ; Read failed
+90      MOV     a1, #0
+        MOV     pc, lr
+
+
+HAL_TimerIRQClear ROUT
+        CMP     a1, #NumTimers
+        MOVCS   pc, lr ; invalid timer parameter
+        PUSH    {v1, lr}
+        DoMemBarrier lr
+        TimerWs a1, a1, ip
+        LDR     lr, PeriBase
+        LDR     ip, [a1, #Timer_Register]
+        ADD     lr, lr, #Timer_Base
+        
+        MRS     v1, CPSR
+        ORR     a4, v1, #I32_bit
+        MSR     CPSR_c, a4              ; IRQs off
+        
+        LDR     a2, [a1, #Timer_Device]
+        MOV     a3, #1
+        AND     a2, a2, #3              ; physical timer number
+        MOV     a3, a3, LSL a2
+        STR     a3, [lr, #ST_CS]        ; ack the interrupt in the timer peripheral
+        ASSERT  Timer_Reload = 0 :LAND: Timer_Compare = 4
+        LDMIA   a1, {a2, a3}
+01      ADD     a3, a3, a2
+        STR     a3, [ip]
+        STR     a3, [a1, #Timer_Compare]
+        DoMemBarrier a4                 ; ensure compare register is written before we read count
+        LDR     a4, [lr, #ST_CLO]
+        CMP     a3, a4
+        BMI     %B01                    ; loop only happens if it took over a tick to service last IRQ
+        BEQ     %B01                    ; and it's necessary to ensure we don't wait for the counter
+                                        ; to wrap (over an hour) before getting the next one
+        MSR     CPSR_c, v1              ; IRQs restored
+        DoMemBarrier lr
+        POP     {v1, pc}
+
+
+HAL_CounterDelay ROUT
+        ASSERT  TIMER_RATE = 1000000
+        ; The counter is already measured in microseconds and is modulo 2^32,
+        ; which makes this very easy to implement
+        DoMemBarrier ip
+        LDR     a2, PeriBase
+        ADD     a2, a2, #Timer_Base
+        LDR     a3, [a2, #ST_CLO]
+        ADD     a3, a3, #1      ; time until first tick is < 1 us, so waste it
+        ADD     a3, a3, a1
+01      LDR     a4, [a2, #ST_CLO]
+        CMP     a4, a3
+        BMI     %B01            ; MI means we don't have to worry about signedness or wrap
+        DoMemBarrier ip
+        MOV     pc, lr
+
+
+        END

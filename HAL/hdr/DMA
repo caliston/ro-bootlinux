@@ -1,0 +1,160 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+
+; General registers, from DMA_Base
+DMA_INT_STATUS  * &fe0
+DMA_ENABLE      * &ff0
+
+; DMA control block
+
+                ^ 0
+DMACB_TI        # 4
+DMACB_SOURCE_AD # 4
+DMACB_DEST_AD   # 4
+DMACB_TXFR_LEN  # 4
+DMACB_STRIDE    # 4
+DMACB_NEXTCONBK # 4
+DMACB_RESERVED  # 8
+
+DMACB_SIZE      * @
+DMACB_ALIGN     * 32
+
+; DMA channel register map
+
+                ^ 0
+DMACH_CS        # 4 ; RW
+DMACH_CONBLK_AD # 4 ; RW
+DMACH_TI        # 4 ; RO
+DMACH_SOURCE_AD # 4 ; RO
+DMACH_DEST_AD   # 4 ; RO
+DMACH_TXFR_LEN  # 4 ; RO
+DMACH_STRIDE    # 4 ; RO
+DMACH_NEXTCONBK # 4 ; RO (RW when paused)
+DMACH_DEBUG     # 4 ; RW
+
+; Stride of 256 bytes between each channel
+DMA_CH_STRIDE   * &100
+
+; Register/CB bits
+
+DMA_CS_RESET                          * 1<<31
+DMA_CS_ABORT                          * 1<<30
+DMA_CS_DISDEBUG                       * 1<<29
+DMA_CS_WAIT_FOR_OUTSTANDING_WRITES    * 1<<28
+DMA_CS_PANIC_PRIORITY_SHIFT           * 20
+DMA_CS_PANIC_PRIORITY_MASK            * &F
+DMA_CS_PRIORITY_SHIFT                 * 16
+DMA_CS_PRIORITY_MASK                  * &F
+DMA_CS_ERROR                          * 1<<8
+DMA_CS_WAITING_FOR_OUTSTANDING_WRITES * 1<<6
+DMA_CS_DREQ_STOPS_DMA                 * 1<<5
+DMA_CS_PAUSED                         * 1<<4
+DMA_CS_DREQ                           * 1<<3
+DMA_CS_INT                            * 1<<2
+DMA_CS_END                            * 1<<1
+DMA_CS_ACTIVE                         * 1<<0
+
+DMA_TI_NO_WIDE_BURSTS                 * 1<<26
+DMA_TI_WAITS_SHIFT                    * 21
+DMA_TI_WAITS_MASK                     * &F
+DMA_TI_PERMAP_SHIFT                   * 16
+DMA_TI_PERMAP_MASK                    * &1F
+DMA_TI_BURST_LENGTH_SHIFT             * 12
+DMA_TI_BURST_LENGTH_MASK              * &F
+DMA_TI_SRC_IGNORE                     * 1<<11
+DMA_TI_SRC_DREQ                       * 1<<10
+DMA_TI_SRC_WIDTH                      * 1<<9
+DMA_TI_SRC_INC                        * 1<<8
+DMA_TI_DEST_IGNORE                    * 1<<7
+DMA_TI_DEST_DREQ                      * 1<<6
+DMA_TI_DEST_WIDTH                     * 1<<5
+DMA_TI_DEST_INC                       * 1<<4
+DMA_TI_WAIT_RESP                      * 1<<3
+DMA_TI_TDMODE                         * 1<<1 ; Not in lite channels
+DMA_TI_INTEN                          * 1<<0
+
+DMA_TXFR_LEN_YLENGTH_SHIFT            * 16    ; Not in lite channels
+DMA_TXFR_LEN_YLENGTH_MASK             * &3FFF
+DMA_TXFR_LEN_XLENGTH_SHIFT            * 0
+DMA_TXFR_LEN_XLENGTH_MASK             * &FFFF
+
+DMA_TXFR_LEN_D_STRIDE_SHIFT           * 16
+DMA_TXFR_LEN_D_STRIDE_MASK            * &FFFF
+DMA_TXFR_LEN_S_STRIDE_SHIFT           * 16
+DMA_TXFR_LEN_S_STRIDE_MASK            * &FFFF
+
+DMA_DEBUG_LITE                        * 1<<28
+DMA_DEBUG_VERSION_SHIFT               * 25
+DMA_DEBUG_VERSION_MASK                * &7
+DMA_DEBUG_DMA_STATE_SHIFT             * 16
+DMA_DEBUG_DMA_STATE_MASK              * &FF
+DMA_DEBUG_DMA_ID_SHIFT                * 8
+DMA_DEBUG_DMA_ID_MASK                 * &FF
+DMA_DEBUG_OUTSTANDING_WRITES_SHIFT    * 4
+DMA_DEBUG_OUTSTANDING_WRITES_MASK     * &F
+DMA_DEBUG_READ_ERROR                  * 1<<2
+DMA_DEBUG_FIFO_ERROR                  * 1<<1
+DMA_DEBUG_READ_LAST_NOT_SET_ERROR     * 1<<0
+
+; Peripheral DREQ values
+DREQ_NONE              * 0
+DREQ_DSI1              * 1
+DREQ_PCM_TX            * 2
+DREQ_PCM_RX            * 3
+DREQ_SMI               * 4
+DREQ_PWM               * 5
+DREQ_SPI_TX            * 6
+DREQ_SPI_RX            * 7
+DREQ_BSC_SPI_SLAVE_TX  * 8
+DREQ_BSC_SPI_SLAVE_RX  * 9
+DREQ_EMMC              * 11
+DREQ_UART_TX           * 12
+DREQ_SD_HOST           * 13
+DREQ_UART_RX           * 14
+DREQ_DSI2              * 15
+DREQ_SLIMBUS_MC_TX     * 16
+DREQ_HDMI              * 17
+DREQ_SLIMBUS_MC_RX     * 18
+DREQ_SLIMBUS_DC0       * 19
+DREQ_SLIMBUS_DC1       * 20
+DREQ_SLIMBUS_DC2       * 21
+DREQ_SLIMBUS_DC3       * 22
+DREQ_SLIMBUS_DC4       * 23
+DREQ_SCALER_FIFO_0_SMI * 24
+DREQ_SCALER_FIFO_1_SMI * 25
+DREQ_SCALER_FIFO_2_SMI * 26
+DREQ_SLIMBUS_DC5       * 27
+DREQ_SLIMBUS_DC6       * 28
+DREQ_SLIMBUS_DC7       * 29
+DREQ_SLIMBUS_DC8       * 30
+DREQ_SLIMBUS_DC9       * 31
+
+; Channels 7-14 are lite channels
+DMA_CH_is_lite         * &7F80
+
+        END

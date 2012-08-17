@@ -1,0 +1,328 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; Copyright (c) 2012, John Ballance
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+;
+
+        AREA    |ARM$$code|, CODE, READONLY, PIC
+
+        GET     Hdr:ListOpts
+        GET     hdr.BCM2835
+        GET     hdr.StaticWS
+
+        IMPORT  workspace
+
+     [ HALDebug
+        IMPORT  output_hex8
+        IMPORT  output_newline
+        IMPORT  output_text
+        IMPORT  output_text_at
+        IMPORT  HAL_DebugHexTX4
+        IMPORT  HAL_DebugTXStrInline
+     ]
+
+        EXPORT  HAL_SendHostMessage
+        EXPORT  HAL_QueryPlatform
+        EXPORT  MacAdd
+        EXPORT  RamAd
+        EXPORT  SerNo
+        EXPORT  Displ
+
+
+; send a message packet to the host and await the reply
+; on entry, r0 =  message channel to use and/or wholemessage
+;           r1 -> message tag buffer, 16 byte aligned. or 0
+;           
+; on exit,  r0 = mailbox response word
+;          
+HAL_SendHostMessage  ROUT
+        STMFD   r13!, {r1-r3, lr}
+        DoMemBarrier r3
+        FlushDataCache r3
+        LDR     r3, PeriBase
+        ADD     r3, r3, #MB_Base
+; check we can send a message
+001     LDR     r2,[r3, #MB_Sta]
+        TST     r2, #MB_Sta_Full
+        BNE     %BT001                ; write channel full
+; send message
+        TEQ     r1, #0
+        BICNE   r1, r1, #&c0000000
+;        LDRNE   r2, FB_CacheMode
+;        ORRNE   r1, r1, r2
+        ORR     r2, r0, r1
+        AND     r1, r0, #&f            ; isolate channel number
+        STR     r2,[r3, #MB_ChWr]
+; await response and check it is ours
+002     LDR     r0,[r3, #MB_Sta]
+        TST     r0, #MB_Sta_Empty
+        BNE     %BT002                ; still empty
+        LDR     r0,[r3,#MB_ChRd]
+        AND     r2, r0, #&f
+        CMP     r2, r1                ; check its is our channel
+        BNE     %BT002                ; not our reply
+        DoMemBarrier r3
+        LDMFD   r13!, {r1-r3, pc}     ; returning composite response in r0
+
+; Interrogate the platform and set up basic machine
+; Sets up L2 cache addressing mode
+;         ARM_Memory_MB (in Megabytes)
+;         Frame buffer base address for 32bit fb
+;         Board_MAC address
+;         Board_Serial
+;
+HAL_QueryPlatform    ROUT
+        STMFD   R13!, {r0-r5, lr}
+ [ HALDebug
+        bl      HAL_DebugTXStrInline
+        DCB     "HalQueryPl",10,0
+        ALIGN
+ ]
+        mov     r4, #GPU_L2CnonAl              ; L2 Cache off mode
+        str     r4, FB_CacheMode               ; remember
+
+        adrl    r1, tagbuffer
+        adr     r0, tagb
+        mov     r2, #tagslen
+lp1     ldr     r3, [r0], #4                   ; copy to workspace buffer
+        str     r3, [r1], #4
+        subs    r2, r2, #4
+        bgt     lp1        
+
+        adrl    r1, tagbuffer
+        MOV     r0, #MB_Chan_ARM2VC 
+        BL      HAL_SendHostMessage            ; ask the questions
+
+        ADRL    r5, tagbuffer                  ; now read the answers
+        ADD     r0,r5,#Dispbs-tagb             ; frame buffer address and size
+        LDMIA   r0, {r1, r2}
+        STR     r1, FB_Base
+        STR     r1, mbbase
+        STR     r2, FB_Size
+        STR     r2, mbscrsz
+ [ HALDebug
+     mov a1,a2
+     bl HAL_DebugHexTX4
+     mov a1,a3
+     bl HAL_DebugHexTX4
+ ]
+
+        add     r0,r5,#phyx-tagb               ; physical screen dimensions
+        LDMIA   r0, {r1, r2}
+        STR     r1, mbxres
+        STR     r2, mbyres
+ [ HALDebug
+     mov a1,a2
+     bl HAL_DebugHexTX4
+     mov a1,a3
+     bl HAL_DebugHexTX4
+ ]
+        
+        add     r0,r5,#virtx-tagb               ; virtual screen dimensions
+        LDMIA   r0, {r1, r2}
+        STR     r1, mbxvres
+        STR     r2, mbyvres
+ [ HALDebug
+     mov a1,a2
+     bl HAL_DebugHexTX4
+     mov a1,a3
+     bl HAL_DebugHexTX4
+ ]
+        
+        add     r0,r5,#vxoff-tagb               ; virtual screen offset
+        LDMIA   r0, {r1, r2}
+        STR     r1, mbxoff
+        STR     r2, mbyoff
+ [ HALDebug
+     mov a1,a2
+     bl HAL_DebugHexTX4
+     mov a1,a3
+     bl HAL_DebugHexTX4
+ ]
+        
+        add     r0,r5,#dispbpp-tagb             ; bits per pixel
+        LDR     r0, [r0]
+        STR     r0, mbbpp
+ [ HALDebug
+     bl HAL_DebugHexTX4
+ ]
+
+        add     r0,r5,#dispit-tagb              ; display pitch
+        LDR     r0, [r0]
+        STR     r0, mbpitch
+ [ HALDebug
+     bl HAL_DebugHexTX4
+ ]
+
+        ; copy out and construct machine ID from MAC address
+        ADRL    r0, tagbuffer
+        ADD     r0, r0,#:INDEX:MAClo-:INDEX:tagb
+
+        ADRL    a3, workspace
+        ADRL    lr,MacAdd
+        LDR     lr, [lr]
+        ADD     a3, a3, lr
+
+        LDR     lr, [a3, #-4]       ; check if message completed
+        TST     lr, #&80000000      ; NE if successful
+        MOVEQ   a1, #0
+        MOVEQ   a2, #0
+        
+        LDMNEIA a3, {a1, a2}
+        AND     a3, a1, #&ff000000
+        MOV     a3, a3, LSR #24
+        ORR     a2, a3, a2, LSL #8
+        MOV     a1, a1, LSL #8
+        ORR     a1, a1, #&81
+        BIC     a2, a2, #&ff000000
+; now encapsulate with crc
+        MOV     a3, #0                 ;
+        MOV     a4, #7                 ; number of bytes to do
+gbyte                                  ;
+        AND     v2, a1, #&ff           ; get next byte. shift reg round 8 byte
+        AND     v3, a2, #&ff           ; shift reg round 8 byte
+        MOV     v1, v2, lsl #24
+        MOV     v3, v3, lsl #24
+        ORR     a1, v3, a1,lsr #8      ; shift reg round 8 byte
+        ORR     a2, v1, a2,lsr #8      ; shift reg round 8 byte
+
+        EOR     a3, a3, v2             ;                                  
+        MOV     v1, #8                 ; number of bits to do
+gbit                                   ;                                  
+        MOVS    a3, a3, LSR #1         ; shift bit out into carry
+        EORCS   a3, a3, #&8C           ; feedback carry into other bits
+        SUBS    v1, v1, #1             ; one less bit to do               
+        BNE     gbit                   ; loop until done whole byte       
+        SUBS    a4, a4, #1             ; one less byte to do
+        BNE     gbyte                  ; loop until done all 7 bytes
+
+        AND     v2, a1, #&ff           ; get next byte. shift reg round 8 byte
+        AND     v3, a2, #&ff           ; shift reg round 8 byte
+        MOV     v1, v2, lsl #24
+        MOV     v3, v3, lsl #24
+        ORR     a1, v3, a1,lsr #8      ; shift reg round 8 byte
+        ORR     a2, v1, a2,lsr #8      ; shift reg round 8 byte
+
+        ORR     a2, a2, a3, lsl #24    ; insert crc into hi byte
+        ADRL    lr,MachineID
+        STMIA   lr, {a1, a2}        
+ [ HALDebug
+        bl      HAL_DebugTXStrInline
+        DCB     "HalQueryPldone",10,0
+        ALIGN
+ ]
+        LDMFD   R13!, {r0-r5, pc}
+
+MacAdd  DCD     :INDEX:MAClo - :INDEX:tagb + :INDEX:tagbuffer   
+RamAd   DCD     :INDEX:ARMbs - :INDEX:tagb + :INDEX:tagbuffer
+SerNo   DCD     :INDEX:SNlo  - :INDEX:tagb + :INDEX:tagbuffer
+Displ   DCD     :INDEX:Dispbs  - :INDEX:tagb + :INDEX:tagbuffer
+
+
+; series of VC side query tags. Using inline code as this is writable at this 
+; stage. This means the answers will be encapsulated in rom image!!
+;
+; CURRENT ASSIGNED SPACE 256 bytes.. BEWARE
+;
+tagb    DCD     tagslen
+        DCD     0        
+tagmac  DCD     ARM2VC_Tag_GetBoardMAC
+        DCD     8
+        DCD     0        
+MAClo   DCD     0        
+MAChi   DCD     0        
+tagserial
+        DCD     ARM2VC_Tag_GetBoardSerial
+        DCD     8
+        DCD     0        
+SNlo    DCD     0
+SNhi    DCD     0        
+tagarmmem
+        DCD     ARM2VC_Tag_GetARMMemory
+        DCD     8
+        DCD     0        
+ARMbs   DCD     0
+ARMsz   DCD     0
+tagvcmem
+        DCD     ARM2VC_Tag_GetVCMemory
+        DCD     8
+        DCD     0        
+VCbs    DCD     0
+VCsz    DCD     0        
+tagdisplphyswh
+        DCD     ARM2VC_Tag_FBSetPhysDimension
+        DCD     8
+        DCD     8
+phyx    DCD     1920
+        DCD     1080
+tagdisplvirtwh
+        DCD     ARM2VC_Tag_FBSetVirtDimension
+        DCD     8
+        DCD     8
+virtx   DCD     1920
+        DCD     1080
+tagdisplvirtoffset
+        DCD     ARM2VC_Tag_FBSetVirtOffset
+        DCD     8
+        DCD     8
+vxoff   DCD     0
+        DCD     0
+tagdispldepth           
+        DCD     ARM2VC_Tag_FBSetDepth
+        DCD     4
+        DCD     4
+dispbpp DCD     32                 ; 32bit
+tagdisplpixord           
+        DCD     ARM2VC_Tag_FBSetPixelOrder
+        DCD     4
+        DCD     4
+        DCD     1                  ; RGB
+tagdisplalpha           
+        DCD     ARM2VC_Tag_FBSetAlphaMode
+        DCD     4
+        DCD     4
+        DCD     2                  ; channel 1=alpha reversed 2=ignore
+taggetpitch           
+        DCD     ARM2VC_Tag_FBGetPitch
+        DCD     4
+        DCD     0
+dispit  DCD     0
+tagdisplalloc           
+        DCD     ARM2VC_Tag_FBAlloc
+        DCD     8
+        DCD     8
+Dispbs  DCD     0x100000            ; megabyte aligned
+Dispsz  DCD     0           
+        DCD     ARM2VC_Tag_End
+tagslen *       . - tagb
+
+
+     
+
+
+                END
+

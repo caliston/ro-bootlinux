@@ -1,0 +1,347 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; Copyright (c) 2012, Adrian Lees
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+; With many thanks to Broadcom Europe Ltd for releasing the source code to
+; its Linux drivers, thus making this port possible.
+;
+
+        AREA    |ARM$$code|, CODE, READONLY, PIC
+
+        GET     Hdr:ListOpts
+        GET     hdr.BCM2835
+        GET     hdr.StaticWS
+
+     [ HALDebug
+        IMPORT  output_hex8
+        IMPORT  output_move
+        IMPORT  output_newline
+        IMPORT  output_regs
+        IMPORT  output_text
+     ]
+        EXPORT   HAL_VideoFlybackDevice
+        EXPORT   HAL_Video_SetMode
+        EXPORT   HAL_Video_WritePaletteEntry
+        EXPORT   HAL_Video_WritePaletteEntries
+        EXPORT   HAL_Video_ReadPaletteEntry
+        EXPORT   HAL_Video_SetInterlace
+        EXPORT   HAL_Video_SetBlank
+        EXPORT   HAL_Video_SetPowerSave
+        EXPORT   HAL_Video_UpdatePointer
+        EXPORT   HAL_Video_SetDAG
+        EXPORT   HAL_Video_VetMode
+        EXPORT   HAL_Video_PixelFormats
+        EXPORT   HAL_Video_Features
+        EXPORT   HAL_Video_BufferAlignment
+        EXPORT   HAL_Video_OutputFormat
+        EXPORT   HAL_Video_Render
+        EXPORT   HAL_Video_IICOp
+        EXPORT   HAL_Video_FramestoreAddress
+
+        MACRO
+        HALStub $str
+     [ HALDebug
+        STMFD   sp!,{a1,lr}
+        ADR     a1,%FT01
+        ADR     lr,%FT02
+        B       output_text
+01      =       "$str called from "
+        ALIGN
+02      LDR     a1,[sp,#4]
+        BL      output_hex8
+        BL      output_newline
+        LDMFD   sp!,{a1,lr}
+     ]
+        MEND
+
+INTERRUPT_FLYBACK       *       -1
+
+
+HAL_VideoFlybackDevice
+;       HALStub "HAL_VideoFlybackDevice"
+        MOV     a1,#INTERRUPT_FLYBACK
+        MOV     pc,lr
+
+HAL_Video_SetMode
+        HALStub "HAL_VideoSetMode"
+        MOV     pc,lr
+
+HAL_Video_WritePaletteEntry
+        TEQ     a1, #2
+        ADREQL  a1, CurPalette
+        MOVNE   pc, lr
+        MOV     a2, a2, LSR #8
+        STR     a2, [a1, a3, LSL #2]
+        MOV     pc, lr
+
+HAL_Video_WritePaletteEntries
+        TEQ     a1, #2
+        ADREQL  a1, CurPalette
+        MOVNE   pc, lr
+        SUBS    a4, a4, #1
+        LDRPL   ip, [a2], #4
+        ADD     a1, a1, a3, LSL #2
+wrpal_lp
+        MOVPL   ip, ip, LSR #8
+        STRPL   ip, [a1], #4
+        SUBPLS  a4, a4, #1
+        LDRPL   ip, [a2], #4
+        BPL     wrpal_lp
+        MOV     pc,lr
+
+HAL_Video_ReadPaletteEntry
+;       HALStub "HAL_Video_ReadPaletteEntry"
+        MOV     a1,a2
+        MOV     pc,lr
+
+HAL_Video_SetInterlace
+        HALStub "HAL_Video_SetInterlace"
+        MOV     pc,lr
+
+HAL_Video_SetBlank
+;       HALStub "HAL_Video_SetBlank"
+        MOV     pc,lr
+
+HAL_Video_SetPowerSave
+        HALStub "HAL_Video_SetPowerSave"
+        MOV     pc,lr
+
+HAL_Video_FramestoreAddress
+;       HALStub "HAL_Video_FramestoreAddress"
+        LDR     r1, FB_Size
+        LDR     r0, FB_Base
+        MOV     r4, #0
+        MOV     pc,lr
+
+        [ {FALSE}
+update_ptr
+        =       "UpdatePointer",0
+        ALIGN
+        ]
+
+HAL_Video_UpdatePointer
+        STMFD   sp!,{v1-v5,lr}
+
+        [ {FALSE}
+        STMFD   sp!,{a1-a4}
+        ADR     a3,update_ptr
+        MOV     a1,#0
+        MOV     a2,#30
+        BL      output_text_at
+        BL      output_newline
+        LDR     a1,[sp]
+        BL      output_hex8
+        BL      output_newline
+        LDR     a1,[sp,#4]
+        BL      output_hex8
+        BL      output_newline
+        LDR     a1,[sp,#8]
+        BL      output_hex8
+        BL      output_newline
+        LDR     a1,[sp,#12]
+        BL      output_hex8
+        BL      output_newline
+        LDMFD   sp!,{a1-a4}
+        ]
+
+        ; remove cursor from previous position, if any
+
+cur_remove
+
+        STMFD   sp!,{a1-a3}
+
+        LDR     v5,BytesPerRow
+        MOV     v5,v5,LSR #3
+        [ SCR32
+        SUB     v5,v5,#32*4
+        |
+        SUB     v5,v5,#32*2
+        ]
+
+        LDR     v4,CurAddr
+        TEQ     v4,#0
+        BEQ     remv_done
+
+        ADRL    v3,CurUnder
+        LDR     v2,CurHeight
+remv_y_lp
+        SUBS    v2,v2,#1
+        BMI     remv_done
+        MOV     v1,#32
+remv_x_lp
+        [ SCR32
+        LDR     a1,[v3],#4
+        SUBS    v1,v1,#1
+        STR     a1,[v4],#4
+        |
+        LDRH    a1,[v3]
+        ADD     v3,v3,#2
+        SUBS    v1,v1,#1
+        STRH    a1,[v4]
+        ADD     v4,v4,#2
+        ]
+        BNE     remv_x_lp
+        ADD     v4,v4,v5
+        B       remv_y_lp
+remv_done
+        LDMFD   sp!,{a1-a3}
+
+        ANDS    a1,a1,#1
+        STREQ   a1,CurAddr
+        BEQ     restore
+
+        LDRB    v4,[a4,#1]
+        LDR     a4,[a4,#4]
+;!!!
+        CMP     a2,#0
+        MOVLT   a2,#0
+        LDR     v5,=1920-32
+        CMP     a2,v5
+        MOVGT   a2,v5
+        CMP     a3,#0
+        MOVLT   a3,#0
+        LDR     v5,=1080
+        SUB     v5,v5,v4
+        CMP     a3,v5
+        MOVGT   a3,v5
+
+        ; screen address
+        LDR     v5,BytesPerRow
+        LDR     v2,BitsPerPixel
+        LDR     v1,ScreenBase
+        MOV     v5,v5,LSR #3
+        MOV     v2,v2,LSR #3
+        MLA     v1,a3,v5,v1
+        MLA     v1,a2,v2,v1
+
+        [ SCR32
+        SUB     v5,v5,#32*4
+        |
+        SUB     v5,v5,#32*2
+        ]
+
+        ; render cursor
+
+        STR     v4,CurHeight
+        STR     v1,CurAddr
+        ADRL    lr,CurUnder
+        ADRL    a3,CurPalette
+cur_y_lp
+        LDR     v2,[a4],#4
+        MOV     v3,#0
+cur_x_lp
+        TEQ     v3,#32
+        LDREQ   v2,[a4],#4
+
+        ANDS    ip,v2,#3
+        LDRNE   a1,[a3,ip,LSL #2]
+        [ SCR32
+        LDR     ip,[v1],#4
+        STRNE   a1,[v1,#-4]
+        STR     ip,[lr],#4
+        |
+        LDRH    ip,[v1]
+        STRNEH  a1,[v1]
+        STRH    ip,[lr]
+        ADD     v1,v1,#2
+        ADD     lr,lr,#2
+        ]
+        ADD     v3,v3,#2
+        MOV     v2,v2,LSR #2
+        TEQ     v3,#64
+        BNE     cur_x_lp
+
+        ADD     v1,v1,v5
+
+        SUBS    v4,v4,#1
+        BGT     cur_y_lp
+
+        LDMFD   sp!,{v1-v5,pc}
+
+restore
+        LDMFD   sp!,{v1-v5,pc}
+
+HAL_Video_SetDAG
+;       HALStub "HAL_Video_SetDAG"
+;
+;     [ :LNOT: ExtFramestore
+;  STMFD sp!,{a1,a2,lr}
+;  MOV a1,#0
+;  MOV a2,#0
+;  BL output_move
+;  LDMFD sp!,{a1,a2}
+;  BL output_regs
+;  LDR lr,[sp],#4
+;
+;;  TEQ a1,#0
+;;  LDREQ a3,PeriBase
+;;  ORREQ a2,a2,#&C0000001
+;;  ADDEQ a3,a3,#&B800
+;;  STREQ a2,[a3,#&A0]
+;     ]
+
+        MOV     pc,lr
+
+HAL_Video_VetMode
+;       HALStub "HAL_Video_VetMode"
+        MOV     a1,#0
+        MOV     pc,lr
+
+HAL_Video_PixelFormats
+;       HALStub "HAL_Video_PixelFormats"
+        MOV     a1,#&1F ; blatant lie!
+        MOV     pc,lr
+
+HAL_Video_Features
+;       HALStub "HAL_Video_Features"
+      [ ExtFramestore
+        MOV     a1,#2_10000 ; no hardware scrolling/cursor, but do render
+      |
+        MOV     a1,#2_10001 ; hardware scrolling and render, but not cursor
+      ]
+        MOV     pc,lr
+
+HAL_Video_BufferAlignment
+;       HALStub "HAL_Video_BufferAlignment"
+        MOV     a1,#32
+        MOV     pc,lr
+
+HAL_Video_OutputFormat
+        HALStub "HAL_Video_OutputFormat"
+        MOV     a1,#0
+        MOV     pc,lr
+
+HAL_Video_Render
+;       HALStub "HAL_Video_Render"
+        MOV     pc,lr
+
+HAL_Video_IICOp
+        HALStub "HAL_VideoIICOp"
+        MOV     a1,#0
+        MOV     pc,lr
+
+        END

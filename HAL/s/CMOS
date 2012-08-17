@@ -1,0 +1,84 @@
+;
+; Copyright (c) 2012, RISC OS Open Ltd
+; Copyright (c) 2012, Adrian Lees
+; All rights reserved.
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met: 
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in the
+;       documentation and/or other materials provided with the distribution.
+;     * Neither the name of RISC OS Open Ltd nor the names of its contributors
+;       may be used to endorse or promote products derived from this software
+;       without specific prior written permission.
+; 
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+;
+; With many thanks to Broadcom Europe Ltd for releasing the source code to
+; its Linux drivers, thus making this port possible.
+;
+
+        AREA    |ARM$$data|, CODE, READONLY, PIC
+
+        EXPORT  HAL_NVMemoryType
+        EXPORT  HAL_NVMemorySize
+        EXPORT  HAL_NVMemoryPageSize
+        EXPORT  HAL_NVMemoryProtectedSize
+        EXPORT  HAL_NVMemoryProtection
+        EXPORT  HAL_NVMemoryRead
+        EXPORT  HAL_NVMemoryWrite
+
+cmos_size       *       2048    ; arbitrary choice
+        
+        UND     #&C305 ; get it?
+        DCD     cmos_size
+cmos
+        %       cmos_size
+
+HAL_NVMemoryType
+        ; HAL provides calls to access NVMemory, physical locations 0-15 are read/write
+        LDR     a1, =3 :OR: 1:SHL:10 :OR: 1:SHL:11
+        MOV     pc,lr
+
+HAL_NVMemorySize
+        MOV     a1,#cmos_size
+        MOV     pc,lr
+
+HAL_NVMemoryPageSize
+        MOV     a1,#cmos_size
+        MOV     pc,lr
+
+HAL_NVMemoryProtectedSize
+        MOV     a1,#0
+        MOV     pc,lr
+
+HAL_NVMemoryProtection
+        MOV     pc,lr
+
+HAL_NVMemoryRead
+        ADRL    ip,cmos
+        ADD     ip,ip,a1
+        MOVS    a1,a3
+nvr_lp  LDRNEB  a4,[ip],#1
+        STRNEB  a4,[a2],#1
+        SUBNES  a3,a3,#1
+        BNE     nvr_lp
+        MOV     pc,lr
+
+HAL_NVMemoryWrite
+        MOV     a1,a3
+        MOV     pc,lr
+
+        END
