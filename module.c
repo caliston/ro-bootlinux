@@ -15,6 +15,28 @@ static void *module_globalPrivateWord=NULL;
 #define INITRD_FILENAME "none"
 #define CMDLINE "not passed yet"
 #define ZIMAGE_MODE	0	// doesn't work
+#define IO_BASE 0x20000000
+#define IO_SIZE 0x01000000
+
+extern int HAL_SendHostMessage(int channel, void*tagBuffer, void *iobase);
+
+OSERROR *test_message(_kernel_swi_regs *r)
+{
+  _kernel_oserror *err;
+  int output;
+  PageBlock io;
+  void *ioLogical;
+  
+  io.physical=IO_BASE;
+  if ((err=_swix(OS_Memory,_INR(0,2)|_OUT(3),13,IO_BASE,IO_SIZE,
+        &ioLogical)))
+      return err;
+  printf("IO base logical address = %p\n",ioLogical);
+   
+  output=HAL_SendHostMessage(r->r[0],r->r[1],r->r[2]);
+  printf("Responded %x\n");
+  return NULL;
+}
 
 OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 {
@@ -22,6 +44,8 @@ OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
   UNUSED(privateWord);
   UNUSED(swiNumber);
   UNUSED(r);
+  int output;
+  
 
   switch(swiNumber)
   {
@@ -29,7 +53,9 @@ OSERROR *module_swi(int swiNumber, _kernel_swi_regs *r, void *privateWord)
 		start_linux(KERNEL_FILENAME,INITRD_FILENAME,CMDLINE,r->r[0],ZIMAGE_MODE);
 		printf("Phew!\n");
 		break;
-//    case CryptRandom_AddNoise:
+        case LinuxBoot_Messaging:
+                result=test_message(r);
+                break;
 	default:
 		break;
   }
